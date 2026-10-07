@@ -1,0 +1,135 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_FROZEN: "1" # fail if uv.lock does not match pyproject.toml
+
+jobs:
+  lint:
+    name: Lint & type-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          python-version: "3.12"
+      - run: uv sync --extra observability
+      - name: Ruff (lint + security rules)
+        run: uv run ruff check .
+      - name: Ruff (format)
+        run: uv run ruff format --check .
+      - name: Mypy (strict)
+        run: uv run mypy
+
+  test:
+    name: Tests (PostgreSQL + pgvector)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgresql+asyncpg://app:app@localhost:5432/ai_platform_test
+      REQUIRE_DB: "1" # database tests must run: an unreachable database fails the job
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          python-version: "3.12"
+      - run: uv sync --extra observability
+      - name: Create the application role (no superuser, no BYPASSRLS), databases and pgvector
+        run: bash docker/postgres/init.sh
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGPASSWORD: postgres
+          POSTGRES_USER: postgres
+      - name: Tests with coverage
+        run: uv run pytest --cov --cov-report=term-missing --cov-report=xml -W error::DeprecationWarning
+      - name: Evaluation suite (offline regression, every case must pass)
+        run: uv run python -m app.evaluation --min-success-rate 1.0 --json evaluation-report.json
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: test-reports
+          path: |
+            coverage.xml
+            evaluation-report.json
+          if-no-files-found: ignore
+
+  security:
+    name: Security scans
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # the secret scan covers the whole history
+      - uses: astral-sh/setup-uv@v10
+        with:
+          python-version: "3.12"
+      - name: Known vulnerabilities in runtime dependencies (pip-audit)
+        run: |
+          uv export --no-dev --all-extras --no-hashes --no-emit-project --format requirements-txt > requirements-audit.txt
+          uvx pip-audit -r requirements-audit.txt
+      - name: Secrets in the git history (gitleaks)
+        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest git /repo --no-banner --redact
+
+  docker:
+    name: Docker build & smoke test
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          push: false
+          tags: ai-engineering-platform:local
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Start the stack (migrations + demo knowledge base)
+        run: docker compose up -d --wait
+      - name: Smoke test
+        run: |
+          curl -fsS http://localhost:8000/health/ready
+          cat > payload.json <<'JSON'
+          {"request": "Comment doivent être stockés les montants financiers selon le guide technique ?", "wait": true}
+          JSON
+          curl -fsS -X POST http://localhost:8000/api/v1/runs \
+            -H 'content-type: application/json' --data-binary @payload.json -o run.json
+          python3 - <<'PY'
+          import json
+          run = json.load(open("run.json"))
+          assert run["status"] == "COMPLETED" and run["final_result"]["accepted"], run
+          print("smoke run", run["id"], run["metrics"])
+          PY
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

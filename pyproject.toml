@@ -1,0 +1,120 @@
+[project]
+name = "ai-engineering-platform"
+version = "0.1.0"
+description = "Production-minded multi-agent orchestration platform: LangGraph supervisor, specialised agents, tool calling with permissions, hybrid RAG on pgvector, critic/rework loop, evaluation and observability."
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "Thibault Vasseur" }]
+requires-python = ">=3.12"
+# Every runtime dependency has a job (see docs/decisions.md):
+dependencies = [
+    "fastapi>=0.120",               # HTTP API, dependency injection, OpenAPI
+    "uvicorn>=0.35",                # ASGI server
+    "pydantic>=2.11",               # validation of API payloads and of every LLM output
+    "pydantic-settings>=2.10",      # typed configuration from environment / .env
+    "sqlalchemy[asyncio]>=2.0.40",  # async ORM + query builder
+    "asyncpg>=0.30",                # PostgreSQL driver
+    "alembic>=1.16",                # schema migrations
+    "pgvector>=0.4",                # vector column type + distance operators for SQLAlchemy
+    "langgraph>=1.0",               # stateful orchestration graph
+    "anthropic>=1.0,<2",            # Claude provider adapter
+    "openai>=2.0",                  # OpenAI-compatible provider + embeddings adapter
+    "rich>=14",                     # readable demo CLI output
+]
+
+[project.optional-dependencies]
+# Langfuse is optional: the platform must start and trace locally without it.
+observability = ["langfuse>=4.0,<5"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4",
+    "pytest-asyncio>=1.0",
+    "pytest-cov>=6.0",
+    "httpx>=0.28",                  # ASGI test client
+    "ruff>=0.12",
+    "mypy>=1.17",
+    "pre-commit>=4.0",
+]
+
+[tool.uv]
+# This is an application, not a library: dependencies are installed, the project itself is not.
+package = false
+
+# ---------------------------------------------------------------------------
+# Ruff
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["migrations/versions"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # isort
+    "B",        # bugbear
+    "UP",       # pyupgrade
+    "SIM",      # simplify
+    "C4",       # comprehensions
+    "RET",      # return statements
+    "PT",       # pytest style
+    "ASYNC",    # async pitfalls
+    "S",        # bandit security checks
+    "N",        # naming
+    "RUF",      # ruff-specific
+]
+ignore = [
+    "RUF001", "RUF002", "RUF003",  # French typography (’ « ») in prompts and docs strings
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "S311"]
+"scripts/**" = ["S311"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+# ---------------------------------------------------------------------------
+# Mypy
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+warn_unreachable = true
+files = ["app", "scripts"]
+
+[[tool.mypy.overrides]]
+module = ["asyncpg.*", "pgvector.*", "langfuse.*"]
+ignore_missing_imports = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra --strict-markers --strict-config"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+markers = [
+    "integration: requires PostgreSQL + pgvector (TEST_DATABASE_URL); skipped locally when unreachable, mandatory in CI",
+]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError", "\\.\\.\\."]

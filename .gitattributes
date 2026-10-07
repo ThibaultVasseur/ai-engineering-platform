@@ -1,0 +1,4 @@
+# Normalise line endings: the Docker image runs shell scripts that break with CRLF.
+* text=auto eol=lf
+*.sh text eol=lf
+*.png binary

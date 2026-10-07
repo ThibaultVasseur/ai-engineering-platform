@@ -1,0 +1,27 @@
+# Local hooks run the tool versions pinned in uv.lock: no drift between pre-commit and CI.
+# Install once with: uv run pre-commit install
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types: [python]
+      - id: mypy
+        name: mypy (strict)
+        entry: uv run mypy
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: no-env-files
+        name: forbid committing .env files
+        entry: real .env files must never be committed (use .env.example)
+        language: fail
+        files: (^|/)\.env(\..+)?$
+        exclude: \.env\.example$
