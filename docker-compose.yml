@@ -1,0 +1,43 @@
+name: ai-engineering-platform
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      APP_DB_USER: app
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-app}
+      APP_DB_NAME: ai_platform
+    ports:
+      # 5433 on the host avoids clashing with a locally installed PostgreSQL.
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init.sh:/docker-entrypoint-initdb.d/10-init.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ai_platform"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build: .
+    image: ai-engineering-platform:local
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Optional local overrides (LLM provider, keys, Langfuse...). Never committed.
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Values below win over .env: inside the network the database is "postgres:5432".
+      DATABASE_URL: postgresql+asyncpg://app:${APP_DB_PASSWORD:-app}@postgres:5432/ai_platform
+      LOG_FORMAT: json
+      SEED_DEMO_DATA: "true"
+    ports:
+      - "${API_HOST_PORT:-8000}:8000"
+
+volumes:
+  pgdata:
