@@ -1,0 +1,28 @@
+Politique interne NovaDesk (entreprise fictive) — Ventes, devis et données clients
+Version 3.2 — document de démonstration
+
+1. Règles applicables aux devis
+
+Tout devis émis par NovaDesk est numéroté au format DEV-AAAA-NNNNN, la numérotation étant continue et propre à chaque client (tenant). Un devis comporte obligatoirement : l'identité du client, la date d'émission, la durée de validité, le détail des lignes (désignation, quantité, prix unitaire hors taxe, remise, taux de TVA) et les totaux hors taxe, TVA et toutes taxes comprises.
+
+La durée de validité par défaut d'un devis est de 30 jours. Passé ce délai, le devis passe automatiquement au statut « expiré » et ne peut plus être accepté sans réémission.
+
+Le cycle de vie d'un devis est le suivant : brouillon, envoyé, accepté, refusé ou expiré. Seul un devis au statut brouillon peut être modifié. Un devis accepté est converti en facture ; il n'est jamais supprimé.
+
+Les remises supérieures à 15 % du montant hors taxe nécessitent l'approbation d'un manager avant l'envoi du devis. L'approbation est tracée (auteur, date, motif).
+
+Le taux de TVA par défaut est de 20 %. Le taux est porté par chaque ligne afin de gérer les produits soumis à des taux réduits. Les montants sont exprimés en euros avec deux décimales ; l'arrondi est effectué ligne par ligne.
+
+2. Conservation et archivage
+
+Le document PDF de chaque devis envoyé est généré à partir des données validées et archivé pendant 10 ans, conformément aux obligations comptables. Les archives sont immuables.
+
+3. Protection des données (RGPD)
+
+Les données des clients sont strictement isolées par tenant : aucun utilisateur ne peut consulter les devis d'un autre client. Seules les données nécessaires à l'établissement du devis sont collectées (minimisation). Les demandes d'effacement portant sur des données personnelles sont traitées sous 30 jours, sous réserve des obligations légales de conservation.
+
+Tout accès aux devis est journalisé (utilisateur, action, horodatage). Les journaux ne contiennent jamais de données personnelles en clair.
+
+4. Sécurité et habilitations
+
+L'authentification se fait par SSO. Trois rôles sont définis : commercial (création et envoi de devis), manager (approbation des remises, tableaux de bord) et administrateur (paramétrage). Le principe du moindre privilège s'applique à tous les accès, y compris aux intégrations et aux agents automatisés.

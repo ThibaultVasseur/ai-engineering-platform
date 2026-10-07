@@ -1,0 +1,34 @@
+Guide technique NovaDesk (entreprise fictive) — Conventions backend
+Version 2.4 — document de démonstration
+
+1. Socle technique
+
+Les services backend sont écrits en Python 3.12 avec FastAPI et Pydantic v2. La base de données est PostgreSQL 17, accédée via SQLAlchemy 2. Les évolutions de schéma sont livrées sous forme de migrations Alembic versionnées, rétrocompatibles et déployables sans interruption de service.
+
+Architecture de référence : chaque module métier (par exemple devis, factures, clients) est découpé en couches — routes API minces, services portant les règles métier, repositories pour la persistance — et communique avec les autres modules par des événements plutôt que par des appels directs à leurs tables.
+
+2. Multi-tenant
+
+Chaque table métier porte une colonne tenant_id. L'isolation est garantie deux fois : les repositories filtrent explicitement sur tenant_id, et des politiques PostgreSQL RLS (row-level security) refusent toute ligne d'un autre tenant. Chaque nouvelle fonctionnalité doit inclure un test prouvant qu'un tenant ne peut ni lire ni modifier les données d'un autre tenant.
+
+3. Montants et calculs financiers
+
+Les montants sont stockés en NUMERIC(12,2) et manipulés en Python avec le type Decimal, jamais avec des float. La devise est un code ISO 4217. Les totaux (HT, TVA, TTC) sont toujours recalculés côté serveur à partir des lignes ; un total envoyé par le client n'est jamais accepté tel quel.
+
+4. Conception des API
+
+Les API REST sont exposées sous /api/v1 avec des noms de ressources au pluriel. La pagination utilise limit et offset. Les erreurs suivent une enveloppe unique {"error": {"code", "message", "details", "request_id"}}. Toute requête POST créant un document financier accepte un en-tête Idempotency-Key afin d'éviter les doublons en cas de nouvelle tentative.
+
+Les transitions de statut sont exposées par des endpoints dédiés (par exemple POST /api/v1/quotes/{id}/status) et validées par une machine à états ; une transition invalide renvoie 409.
+
+5. Événements et intégrations
+
+Les événements métier (quote.sent, quote.accepted, quote.expired) sont publiés via une table outbox écrite dans la même transaction que la modification, puis relayés de manière asynchrone. Les consommateurs doivent être idempotents.
+
+6. Génération de documents
+
+Les PDF sont générés par un worker asynchrone à partir de templates HTML, puis stockés dans un stockage objet. Les liens de téléchargement sont des URL signées à durée de vie courte. La génération d'un PDF doit prendre moins de 3 secondes au 95e centile.
+
+7. Observabilité et tests
+
+Les logs sont structurés en JSON, portent un request_id et ne contiennent aucune donnée personnelle ni secret. Les tests sont écrits avec pytest ; la couverture minimale est de 80 % et chaque endpoint dispose de tests de contrat.

@@ -1,0 +1,26 @@
+Spécifications produit NovaDesk (entreprise fictive) — Module Devis v1
+Document de démonstration
+
+1. Objectif
+
+Permettre aux équipes commerciales des clients de NovaDesk de créer, envoyer et suivre des devis directement dans l'application SaaS, puis de convertir les devis acceptés en factures sans ressaisie.
+
+2. Utilisateurs
+
+Les commerciaux créent les devis à partir du catalogue produits et les envoient par e-mail. Les managers approuvent les remises importantes et suivent les indicateurs. Les clients finaux reçoivent un lien sécurisé pour consulter le devis et l'accepter en ligne.
+
+3. Fonctionnalités attendues
+
+Catalogue de produits avec prix de référence et taux de TVA par défaut. Création d'un devis composé de lignes : produit, désignation libre, quantité, prix unitaire, remise et taux de TVA. Calcul automatique des totaux hors taxe, TVA et toutes taxes comprises. Duplication d'un devis existant et modèles de devis réutilisables. Relance automatique 7 jours avant l'expiration. Acceptation en ligne par le client final avec horodatage. Conversion d'un devis accepté en facture. Tableau de bord : taux de conversion des devis, montant moyen, délai moyen entre création et envoi.
+
+4. Exigences non fonctionnelles
+
+Volume cible : 500 devis par jour et par tenant. Génération du PDF en moins de 3 secondes. Disponibilité de 99,9 %. Historique complet des modifications de chaque devis (audit).
+
+5. Hors périmètre de la v1
+
+Multi-devises, signature électronique qualifiée (eIDAS), devis multi-entités juridiques et négociation ligne par ligne avec le client.
+
+6. Indicateurs de succès
+
+Taux de conversion devis vers commande, délai moyen d'envoi d'un devis et part des devis envoyés sans erreur de calcul.
