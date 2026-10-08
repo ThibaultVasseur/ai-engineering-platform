@@ -1,5 +1,9 @@
 # AI Engineering Multi-Agent Platform
 
+[![CI](https://github.com/ThibaultVasseur/ai-engineering-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/ThibaultVasseur/ai-engineering-platform/actions/workflows/ci.yml)
+![Python 3.12](https://img.shields.io/badge/python-3.12-blue)
+![Licence MIT](https://img.shields.io/badge/licence-MIT-green)
+
 Plateforme d'orchestration multi-agents pensée pour la production : un workflow **LangGraph**
 dans lequel un optimiseur de prompt et un planificateur structurent la demande, un
 **superviseur** confie les étapes du plan à des agents spécialisés (recherche, données, code,
