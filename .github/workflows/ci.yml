@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.2.0 # exact versions only: setup-uv publishes no floating major tag
         with:
           enable-cache: true
           python-version: "3.12"
@@ -54,7 +54,7 @@ jobs:
       REQUIRE_DB: "1" # database tests must run: an unreachable database fails the job
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.2.0 # exact versions only: setup-uv publishes no floating major tag
         with:
           enable-cache: true
           python-version: "3.12"
@@ -86,7 +86,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # the secret scan covers the whole history
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.2.0 # exact versions only: setup-uv publishes no floating major tag
         with:
           python-version: "3.12"
       - name: Known vulnerabilities in runtime dependencies (pip-audit)
@@ -94,7 +94,12 @@ jobs:
           uv export --no-dev --all-extras --no-hashes --no-emit-project --format requirements-txt > requirements-audit.txt
           uvx pip-audit -r requirements-audit.txt
       - name: Secrets in the git history (gitleaks)
-        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest git /repo --no-banner --redact
+        # The checkout belongs to the runner user, not to the container user: declare it safe
+        # for git, otherwise git refuses to read the history ("dubious ownership").
+        run: >-
+          docker run --rm -v "$PWD:/repo"
+          -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0='*'
+          zricethezav/gitleaks:latest git /repo --no-banner --redact
 
   docker:
     name: Docker build & smoke test
